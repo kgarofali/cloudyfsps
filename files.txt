@@ -1,0 +1,5 @@
+/Users/kgarofal/opt/anaconda3/envs/my-fsps/lib/python3.8/site-packages/cloudyfsps-0.1-py3.8.egg
+/Users/kgarofal/opt/anaconda3/envs/my-fsps/bin/runCloudy.py
+/Users/kgarofal/opt/anaconda3/envs/my-fsps/bin/f2py
+/Users/kgarofal/opt/anaconda3/envs/my-fsps/bin/f2py3
+/Users/kgarofal/opt/anaconda3/envs/my-fsps/bin/f2py3.8

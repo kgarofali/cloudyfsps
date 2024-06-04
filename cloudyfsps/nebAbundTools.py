@@ -6,6 +6,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 from builtins import zip
 from builtins import object
+import os
 
 import numpy as np
 from .generalTools import sym_to_name
@@ -17,7 +18,7 @@ def getNebAbunds(set_name, logZ, dust=True, re_z=False, **kwargs):
     set_name must be 'dopita', 'newdopita', 'cl01' or 'yeh'
     '''
     allowed_names = ['dopita', 'newdopita', 'cl01', 'yeh',
-                     'varyNO', 'gutkin', 'UVbyler', 'varyCO', 'LIMS']
+                     'varyNO', 'gutkin', 'UVbyler', 'varyCO', 'LIMS', 'nicholls']
     if set_name in allowed_names:
         return eval('{}({}, dust={}, re_z={})'.format(set_name, logZ, dust, re_z))
     else:
@@ -360,6 +361,45 @@ class varyNO(abundSet):
          for key, val in list(self.abund_0.items()) if not hasattr(self, key)]
         return
 
+class nicholls(abundSet):
+
+    def __init__(self, logZ, dust=True, re_z=False):
+        abund_logZ = {'0.0002': 'GC_ZO_0010.abn', '0.001': 'GC_ZO_0050.abn', '0.002': 'GC_ZO_0100.abn', '0.003': 'GC_ZO_0150.abn', '0.004': 'GC_ZO_0200.abn', '0.006': 'GC_ZO_0300.abn', '0.008': 'GC_ZO_0400.abn', '0.01': 'GC_ZO_0500.abn', '0.014': 'GC_ZO_0700.abn', '0.02': 'GC_ZO_1000.abn', '0.03': 'GC_ZO_1500.abn', '0.04': 'GC_ZO_2000.abn'}
+        abund_key = str(round(round(10**logZ,4)*0.02,4))
+        abund_file = os.environ['CLOUDY_DATA_PATH']+'abundances/'+str(abund_logZ[abund_key])
+        if dust:
+            D_G_logZ = {'0.0002': 0.00001217, '0.001': 0.00179, '0.002': 0.0154, '0.003': 0.0542, '0.004': 0.132, '0.006': 0.332, '0.008': 0.442, '0.01': 0.555, '0.014': 0.785, '0.02': 1.136, '0.03': 1.74, '0.04': 2.382}
+            D_G_key = str(round(round(10**logZ,4)*0.02,4))
+            ograins = '\ngrains orion '+str(D_G_logZ[D_G_key])
+            pahgrains = '\ngrains PAH '+str(D_G_logZ[D_G_key])
+            self.grains = ograins+pahgrains
+
+        else:
+            self.grains = 'no grains'
+        self.re_z=re_z
+        self.solar = '"'+str(abund_logZ[abund_key])+'"'
+        abundSet.__init__(self, 'nicholls', logZ)
+
+    def calcSpecial(self):
+        pass
+    def calcFinal(self):
+
+        abund_logZ = {'0.0002': 'GC_ZO_0010.abn', '0.001': 'GC_ZO_0050.abn', '0.002': 'GC_ZO_0100.abn', '0.003': 'GC_ZO_0150.abn', '0.004': 'GC_ZO_0200.abn', '0.006': 'GC_ZO_0300.abn', '0.008': 'GC_ZO_0400.abn', '0.01': 'GC_ZO_0500.abn', '0.014': 'GC_ZO_0700.abn', '0.02': 'GC_ZO_1000.abn', '0.03': 'GC_ZO_1500.abn', '0.04': 'GC_ZO_2000.abn'}
+        elemd = {'Helium': 'He', 'Lithium': 'Li', 'Beryllium': 'Be', 'Boron': 'B', 'Carbon': 'C', 'Nitrogen': 'N', 'Oxygen': 'O', 'Fluorine': 'F', 'Neon': 'Ne', 'Sodium': 'Na', 'Magnesium': 'Mg', 'Aluminium': 'Al', 'Silicon': 'Si', 'Phosphorus': 'P', 'Sulphur': 'S', 'Chlorine': 'Cl', 'Argon': 'Ar', 'Potassium': 'K', 'Calcium': 'Ca', 'Scandium': 'Sc', 'Titanium': 'Ti', 'Vanadium': 'V', 'Chromium': 'Cr', 'Manganese': 'Mn', 'Iron': 'Fe', 'Cobalt': 'Co', 'Nickel': 'Ni', 'Copper': 'Cu', 'Zinc': 'Zn'}
+        abund_key = str(round(round(10**self.logZ,4)*0.02,4))
+        abund_file = os.environ['CLOUDY_DATA_PATH']+'abundances/'+str(abund_logZ[abund_key])
+        with open(abund_file) as f:
+            for line in f:
+                if not line.startswith('#'):
+                    (key, val) = line.split()
+                    if key == 'Hydrogen':
+                        pass
+                    else:
+                        self.abund_0[elemd[key]] = np.log10(float(val))
+        # nell's would take dictionary below (at solar) and add logZ value to scale with metallicity. maybe this is equivalent to using chris's different abund files as above. here we just use the actual file values, then add depletion factors, and don't add logZ (i.e, no "val+self.logZ")
+        [self.__setattr__(key, val+self.depl[key])
+         for key, val in list(self.abund_0.items()) if not hasattr(self, key)]
+        return
 
 
 def load_abund(set_name):
@@ -490,6 +530,37 @@ def load_abund(set_name):
                      Ni=-5.78,
                      Cu=-7.82,
                      Zn=-7.43)
+    elif set_name =='nicholls':
+        # from table 1 in richardson+2022
+        adict = dict(He=-1.01,
+                     Li=-8.722,
+                     Be=-10.68,
+                     B=-9.193,
+                     C=-3.577,
+                     N=-4.21,
+                     O=-3.24,
+                     F=-7.56,
+                     Ne=-3.91,
+                     Na=-5.79,
+                     Mg=-4.44,
+                     Al=-5.57,
+                     Si=-4.50,
+                     P=-6.59,
+                     S=-4.88,
+                     Cl=-6.75,
+                     Ar=-5.60,
+                     K=-6.96,
+                     Ca=-5.68,
+                     Sc=-8.84,
+                     Ti=-7.07,
+                     V=-8.11,
+                     Cr=-6.38,
+                     Mn=-6.58,
+                     Fe=-4.48,
+                     Co=-7.07,
+                     Ni=-5.80,
+                     Cu=-7.82,
+                     Zn=-7.44)
     return adict
 
 def load_depl(set_name):
@@ -605,4 +676,35 @@ def load_depl(set_name):
                      Ca=-2.52,
                      Fe=-2.00,
                      Ni=-1.40)
+    elif set_name =='nicholls':
+        # from table 1 in richardson+2022
+        ddict = dict(He=0.00,
+                     Li=-0.524,
+                     Be=-0.274,
+                     B=-0.546,
+                     C=-0.120,
+                     N=0.00,
+                     O=-0.112,
+                     F=-0.147,
+                     Ne=0.00,
+                     Na=-0.638,
+                     Mg=-0.659,
+                     Al=-1.602,
+                     Si=-0.625,
+                     P=0.00,
+                     S=0.00,
+                     Cl=-0.037,
+                     Ar=0.00,
+                     K=-0.614,
+                     Ca=-2.398,
+                     Sc=-1.533,
+                     Ti=-1.928,
+                     V=-1.159,
+                     Cr=-1.379,
+                     Mn=-1.134,
+                     Fe=-1.510,
+                     Co=-1.343,
+                     Ni=-1.517,
+                     Cu=-0.757,
+                     Zn=-0.075)
     return ddict

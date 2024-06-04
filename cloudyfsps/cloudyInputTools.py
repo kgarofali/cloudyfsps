@@ -7,6 +7,8 @@ from __future__ import absolute_import
 from builtins import zip
 from builtins import range
 import os
+import sys
+import cloudyfsps
 import numpy as np
 import subprocess
 import pkg_resources
@@ -43,14 +45,16 @@ def cloudyInput(dir_, model_name, **kwargs):
             "par2val":0.0,
             "maxStellar":None,
             "use_extended_lines":False,
-            "geometry":"sphere"
+            "geometry":"sphere",
+            "table_sed":False,
+            "table_sed_frac": 0.0
             }
     for key, value in list(kwargs.items()):
         pars[key] = value
     # -----
     if pars["to_file"]:
         file_name = dir_+model_name+".in"
-        f = file(file_name, "w")
+        f = open(file_name, "w")
     def this_print(s, eol=True):
         if s is None:
             print('"None" parameter not printed')
@@ -72,7 +76,7 @@ def cloudyInput(dir_, model_name, **kwargs):
     this_print('title {0}'.format(model_name.split('/')[-1]))
     this_print('////////////////////////////////////')
     this_print('set punch prefix "{0}"'.format(model_name))
-    this_print('set line precision 6')
+    this_print('print line precision 6')
     ####
     if pars['par1'] == "age":
         pars['par1val'] = pars['age']
@@ -84,15 +88,43 @@ def cloudyInput(dir_, model_name, **kwargs):
             else:
                 pars['par2val'] = pars['logZ']
     this_print('table star "{0}" {1}={2:.2e} {3}={4:.2e}'.format(pars['cloudy_mod'], pars['par1'], pars['par1val'],pars['par2'], pars['par2val']))
-    if pars['use_Q']:
+
+    # logic: to add metallicity-dependent imbh at chosen fractional contribution (one frac contrib per run)
+    if pars['table_sed']:
+        table_sed_dict = {'0.01': 'M-2_00-qsoagn-i_45.sed', '0.05': 'M-2_19-qsoagn-i_45.sed', '0.1': 'M-3_28-qsoagn-i_45.sed', '0.2': 'M-3_96-qsoagn-i_45.sed', '0.4':  'M-4_59-qsoagn-i_45.sed', '0.7': 'M-5_24-qsoagn-i_45.sed', '1.0': 'M-5_89-qsoagn-i_45.sed'} # light seed
+        #table_sed_dict = {'0.01': 'M-5_00-qsoagn-i_45.sed', '0.05': 'M-5_00-qsoagn-i_45.sed', '0.1': 'M-5_00-qsoagn-i_45.sed', '0.2': 'M-5_00-qsoagn-i_45.sed', '0.4':  'M-5_00-qsoagn-i_45.sed', '0.7': 'M-5_00-qsoagn-i_45.sed', '1.0': 'M-5_00-qsoagn-i_45.sed'} # if doing imbhFixedM05
+
+        zsol_key = str(round(10**pars['logZ'],2))
+        table_sed_file = table_sed_dict[zsol_key]
+
+        if pars['table_sed_frac'] == 0.00:
+            QH_tablesed = -30.0
+            QH_stsed = pars['logQ']
+        elif  pars['table_sed_frac'] == 1.00:
+            QH_tablesed = pars['logQ']
+            QH_stsed = -30.0
+        else:
+            QH_tablesed = np.log10(pars['table_sed_frac']*10**pars['logQ'])
+            QH_stsed = np.log10((1-pars['table_sed_frac'])*10**pars['logQ'])
+        this_print('Q(H) = {0:.3f} log'.format(QH_stsed))
+        this_print('table sed "{0}"'.format(table_sed_file))
+        this_print('Q(H) = {0:.3f} log'.format(QH_tablesed))
+
+    elif pars['table_sed'] is None:
+        pass
+    if pars['use_Q'] and not pars['table_sed']:
         this_print('Q(H) = {0:.3f} log'.format(pars['logQ']))
-    else:
+    elif not pars['use_Q'] and not pars['table_sed']:
         this_print('ionization parameter = {0:.3f} log'.format(pars['logU']))
+
+
     ####
     this_print(abunds.solarstr)
-    if pars['dust']:
+    if pars['dust'] and pars['set_name'] != 'nicholls':
         #this_print('metals grains {0:.2f} log'.format(pars['gas_logZ']))
         this_print('grains {0:.2f} log'.format(pars['gas_logZ']))
+    elif pars['dust'] and pars['set_name'] == 'nicholls':
+        pass
     #else:
     #    #this_print('metals {0:.2f} log'.format(pars['gas_logZ']))
     for line in abunds.elem_strs:
@@ -104,15 +136,24 @@ def cloudyInput(dir_, model_name, **kwargs):
     else:
         r_out = pars['r_inner']
     if pars['use_extended_lines']:
-        linefile = pkg_resources.resource_filename(__name__,'data/cloudyLinesEXT.dat')
+        pkgdir = os.path.dirname(sys.modules['cloudyfsps'].__file__)
+        linefile = 'cloudyLinesEXT.dat'
+        #linefile =  os.path.join(pkgdir,'data/cloudyLinesEXT.dat')
+        #linefile = pkg_resources.resource_filename(__name__,'data/cloudyLinesEXT.dat')
     else:
-        linefile = pkg_resources.resource_filename(__name__, 'data/cloudyLines.dat')
+        pkgdir = os.path.dirname(sys.modules['cloudyfsps'].__file__)
+        linefile = 'cloudyLines.dat'
+        #linefile =  os.path.join(pkgdir,'data/cloudyLines.dat')
+        #linefile = pkg_resources.resource_filename(__name__, 'data/cloudyLines.dat')
     this_print('radius {0:.3f} log'.format(r_out))
     this_print('hden {0:.3f} log'.format(np.log10(pars['dens'])))
     this_print('{}'.format(pars['geometry']))
     this_print('cosmic ray background')
     this_print('iterate to convergence max=5')
-    this_print('stop temperature 100.0')
+    #this_print('stop temperature 100.0') #changing stopping criteria to get partially ionized zone
+    this_print('constant pressure') #changing stopping criteria to get partially ionized zone
+    this_print("turbulence 2 km/s") # from chris's sims
+    this_print("magnetic field -4") # from chris's sims
     this_print('stop efrac {0:.2f}'.format(pars['efrac']))
     this_print('save last linelist ".lin" "{}" absolute column'.format(linefile))
     this_print('save last outward continuum ".outwcont" units Angstrom no title')
@@ -139,36 +180,38 @@ save last element iron ".ele_Fe"
 save last hydrogen Lya ".H_lya"
 save last hydrogen ionization ".H_ion"
 save last lines emissivity ".emis"
-H  1 6562.85A
-H  1 4861.36A
-H  1 4340.49A
+H  1 6562.81A
+H  1 4861.33A
+H  1 4340.46A
+H  1 4101.73A
 He 1 3888.63A
-He 1 4471.47A
-He 1 5875.61A
-He 2 1640.00A
-O  1 6300.00A
-O  1 6363.00A
-O II 3729.00A
-O II 3726.00A
-O  3 5007.00A
-TOTL 4363.00A
-O  3 4959.00A
-O  3 51.8000m
-N  2 6584.00A
-N  2 6548.00A
-S II 6731.00A
-S II 6716.00A
-S  3 9069.00A
-S  3 9532.00A
-S  3 18.6700m
-S  4 10.5100m
-Ar 3 7135.00A
-Ar 3 9.00000m
-Ne 3 3869.00A
-Ne 2 12.8100m
-Ne 3 15.5500m
-C  3 1910.00A
-C  3 1907.00A
+He 1 4471.49A
+He 1 5875.64A
+He 2 1640.43A
+He 2 4685.64A
+O  1 6300.30A
+O  1 6363.78A
+O  2 3728.81A
+O  2 3726.03A
+O  3 5006.84A
+Blnd 4363.00A
+O  3 4958.91A
+O  3 51.8004m
+N  2 6583.45A
+N  2 6548.05A
+S  2 6730.82A
+S  2 6716.44A
+S  3 9068.62A
+S  3 9530.62A
+S  3 18.7078m
+S  4 10.5076m
+Ar 3 7135.79A
+Ar 3 8.98898m
+Ne 3 3868.76A
+Ne 2 12.8101m
+Ne 3 15.5509m
+C  3 1908.73A
+C  3 1906.68A
 end of lines
 '''
 
@@ -251,7 +294,9 @@ def writeParamFiles(**kwargs):
                 "geometry":"sphere",
                 "write_makefile":False,
                 "extras":"",
-                "extra_output":False}
+                "extra_output":False,
+                "table_sed":False,
+                "table_sed_frac": 0.0}
     for key, val in list(kwargs.items()):
         nom_dict[key] = val
     pars = kwargs.get("pars", None)
@@ -284,7 +329,9 @@ def writeParamFiles(**kwargs):
                     verbose=nom_dict["verbose"],
                     geometry=nom_dict["geometry"],
                     extras=nom_dict["extras"],
-                    extra_output=nom_dict["extra_output"])
+                    extra_output=nom_dict["extra_output"],
+                    table_sed = nom_dict["table_sed"],
+                    table_sed_frac = nom_dict["table_sed_frac"])
     #--------------------------------------------
     if nom_dict["write_makefile"]:
         writeMake(dir_=nom_dict["dir_"])

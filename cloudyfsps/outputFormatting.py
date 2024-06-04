@@ -30,7 +30,7 @@ class writeFormattedOutput(object):
     #sp = fsps.StellarPopulation()
     #fsps_lam = sp.wavelengths
     def __init__(self, dir_, mod_prefix, mod_suffix,
-                 use_extended_lines=False, more_info=False,**kwargs):
+                 use_extended_lines=True, more_info=False,**kwargs):
         '''
         writeFormattedOutput(mod_dir, 'ZAU', 'BPASS')
         '''
@@ -77,7 +77,7 @@ class writeFormattedOutput(object):
         f.close()
         print("lines: {0:.0f} models to file {1}".format(self.mod_num[-1], self.line_out))
         return
-    def printLineLam(self, f, use_extended_lines=False):
+    def printLineLam(self, f, use_extended_lines=True):
         '''
         prints the wavelength array for the emission lines as the second
         line in the output file. converts all wavelengths to vacuum.
@@ -87,8 +87,9 @@ class writeFormattedOutput(object):
             linefile = pkg_resources.resource_filename(__name__, "data/orderedLinesEXT.dat")
         else:
             linefile = pkg_resources.resource_filename(__name__, "data/orderedLines.dat")
+
         data_vac = np.genfromtxt(linefile)
-        #data_vac = air_to_vac(data) # new file is already in vac
+
         nlines = len(data_vac)
         nmods = np.max(self.mod_num)
         #print header to file
@@ -100,6 +101,11 @@ class writeFormattedOutput(object):
         return
     def printLineFlu(self, f, n, more_info=False):
         #write model parameters
+        lsun = 3.839e33
+        pardata = np.genfromtxt(self.file_pr+".pars")
+        logQ = pardata[n-1][5]
+        #print(n)
+        #logQ = pardata[n-1][5]
         if more_info:
             tstr = linecache.getline(self.file_pr+'.pars', n)
         else:
@@ -108,7 +114,8 @@ class writeFormattedOutput(object):
         #read in and print emission line intensities (Lsun/Q)
         nst = "{0}".format(n)
         filename = self.file_pr+nst+".out_lines"
-        lam, flu = np.genfromtxt(filename, unpack=True)
+        lam, flu_wrongu = np.genfromtxt(filename, unpack=True)
+        flu = (flu_wrongu/lsun)/(10**logQ)
         I_str = ["{0:1.4e}".format(s) for s in flu]
         tstr = " ".join(I_str)
         f.write(tstr+"\n")
@@ -142,7 +149,7 @@ class writeFormattedOutput(object):
         # read lambda, diffuse cont
         mdata = np.genfromtxt(filename)
         lam = mdata[:,0]
-        flu = mdata[:,1]
+        flu = mdata[:,2]
         y_str = " ".join(["{0:1.4}".format(y) for y in flu])
         f.write(y_str+"\n")
         return
@@ -192,7 +199,7 @@ class writeAltFormattedOutput(object):
     #sp = fsps.StellarPopulation()
     #fsps_lam = sp.wavelengths
     def __init__(self, dir_, mod_prefix, mod_suffix,
-                 use_extended_lines=False, more_info=False,**kwargs):
+                 use_extended_lines=True, more_info=True,**kwargs):
         '''
         writeFormattedOutput(mod_dir, 'ZAU', 'BPASS')
         '''
@@ -213,25 +220,20 @@ class writeAltFormattedOutput(object):
         return
     def loadModInfo(self, **kwargs):
         '''
-        reads model parameters from "ZAU.pars"
+        reads model parameters from "ZAU.xpars"
         '''
-        name_keys = ["mod_num", "logZ", "Age", "logU", "logR", "logQ", "nH", "efrac", "zmet"]
-        data = np.genfromtxt(self.file_pr+".pars", unpack=True)
+        name_keys = ["mod_num", "logZ", "Age", "logU", "logR", "logQ", "logQi", "nH", "efrac", "mbh", "fagn", "logT"]
+        data = np.genfromtxt(self.file_pr+".xpars", unpack=True)
         ddata = {}
         for i,key in enumerate(name_keys):
-            if key == 'zmet':
-                temp_arr = zmet_to_nuZ(data[i])
-                ddata[key] = temp_arr
-                self.__setattr__(key, temp_arr)
-            else:
-                ddata[key] = data[i]
-                self.__setattr__(key, data[i])
+            ddata[key] = data[i]
+            self.__setattr__(key, data[i])
         self.__setattr__("modpars", ddata)
-        self.NZ = len(np.unique(self.zmet))
+        self.NZ = len(np.unique(self.logZ))
         self.NA = len(np.unique(self.Age))
         self.NU = len(np.unique(self.logU))
         return
-    def doLineOut(self, more_info=False, **kwargs):
+    def doLineOut(self, more_info=True, **kwargs):
         '''
         prints line fluxes to prefix00.lines file
         '''
@@ -242,7 +244,7 @@ class writeAltFormattedOutput(object):
         f.close()
         print("lines: {0:.0f} models to file {1}".format(self.mod_num[-1], self.line_out))
         return
-    def printLineLam(self, f, use_extended_lines=False):
+    def printLineLam(self, f, use_extended_lines=True):
         '''
         prints the wavelength array for the emission lines as the second
         line in the output file. converts all wavelengths to vacuum.
@@ -263,15 +265,16 @@ class writeAltFormattedOutput(object):
         p_str = " ".join(["{0:1.6e}".format(dat) for dat in data_vac])
         f.write(p_str+"\n")
         return
-    def printLineFlu(self, f, n, more_info=False):
+    def printLineFlu(self, f, n, more_info=True):
         #write model parameters
+        # pulling from xpars file, which has more info, and is written with `write_xpars.py` script
         if more_info:
-            tstr = linecache.getline(self.file_pr+'.pars', n)
+            tstr = linecache.getline(self.file_pr+'.xpars', n)
             f.write(tstr)
         else:
-            tstr = "{0:2.4e} {1:2.4e} {2:2.4e}".format(self.zmet[n-1], self.Age[n-1], self.logU[n-1])
+            tstr = "{0:2.4e} {1:2.4e} {2:2.4e}".format(self.logZ[n-1], self.Age[n-1], self.logU[n-1])
             f.write(tstr+"\n")
-        #read in and print emission line intensities (Lsun/Q)
+        #read in and print emission line intensities (erg/s)
         nst = "{0}".format(n)
         filename = self.file_pr+nst+".out_lines"
         lam, flu = np.genfromtxt(filename, unpack=True)
@@ -288,17 +291,17 @@ class writeAltFormattedOutput(object):
                         Age=self.Age[iind-1],
                         nH=self.nH[iind-1],
                         logQ=self.logQ[iind-1],
+                        logQi=self.logQi[iind-1],
                         logU=self.logU[iind-1],
                         logR=self.logR[iind-1],
-                        mod_num=iind,
-                        zmet=self.zmet[iind-1])
+                        mod_num=iind)
             self.printContFlu(f, pars)
         f.close()
         print("cont: {0:.0f} models to file {1}".format(self.modpars['mod_num'][-1], self.cont_out))
         return
     def printContFlu(self, f, pars):
         #write model parameters
-        tstr = "{0:2.4e} {1:2.4e} {2:2.4e}".format(pars["zmet"],
+        tstr = "{0:2.4e} {1:2.4e} {2:2.4e}".format(pars["logZ"],
                                                    pars["Age"],
                                                    pars["logU"])
         f.write(tstr+"\n")
@@ -308,7 +311,7 @@ class writeAltFormattedOutput(object):
         # read lambda, diffuse cont
         mdata = np.genfromtxt(filename)
         lam = mdata[:,0]
-        flu = mdata[:,1]
+        flu = mdata[:,2]
         y_str = " ".join(["{0:1.4}".format(y) for y in flu])
         f.write(y_str+"\n")
         return

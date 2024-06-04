@@ -18,7 +18,7 @@ if [ -f $outfile ];
 then
   echo "File $outfile exists."
   echo "Running python..."
-  python runCloudy.py $outfile
+  python /Users/kgarofal/software/cloudyfsps/scripts/runCloudy.py $outfile
   echo "Python finished."
 else
   echo "ERROR: file $outfile does NOT exist."

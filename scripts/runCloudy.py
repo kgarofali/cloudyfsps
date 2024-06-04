@@ -10,7 +10,18 @@ import subprocess
 import numpy as np
 from cloudyfsps.cloudyOutputTools import formatCloudyOutput
 
-use_extended_lines=False
+use_extended_lines=True
+write_line_lum=True
+
+def check_warning_ok(fl, mod_prefix, modnum):
+    with open(fl) as of:
+        if ('WARNING:' in of.read()):
+            if ('OK' in of.read()):
+                return mod_prefix+modnum+", F, warning, OK"
+            else:
+                 return mod_prefix+modnum+", F, warning, not OK"
+        else:
+            return mod_prefix+modnum+", T, OK"
 
 def get_pars(dir_, mod_prefix, modnum):
     '''
@@ -21,13 +32,18 @@ def get_pars(dir_, mod_prefix, modnum):
     data = np.genfromtxt(dir_+mod_prefix+".pars")
     return data[np.int(modnum)-1, 1:]
 
-def output_OK(fl):
+def output_OK(fl, dir_, mod_prefix, modnum):
     '''
     looks in PREFIX123.out for 'Cloudy exited OK'
     '''
+    ecode_file = dir_+mod_prefix+".ecode"
+    with open(ecode_file, 'a') as ecode:
+        ecode.write(check_warning_ok(fl, mod_prefix, modnum)+"\n")
+
     f = open(fl, 'r')
-    l = f.readlines()[-1]
-    if 'OK' in l:
+    ll = f.readlines()[-1]
+
+    if 'OK' in ll:
         return True
     else:
         return False
@@ -38,7 +54,7 @@ def main(argv):
     mod_prefix=fname.split('.out')[0][0:3]
     modnum=fname.split('.out')[0][3::]
     if os.path.exists(fulloutfile):
-        if output_OK(fulloutfile):
+        if output_OK(fulloutfile, dir_, mod_prefix, modnum):
             print("Cloudy exited OK.")
             print("Formatting output...")
             modpars = get_pars(dir_, mod_prefix, modnum)

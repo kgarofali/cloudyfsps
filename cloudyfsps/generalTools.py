@@ -144,7 +144,11 @@ def name_to_sym(val=None):
             print("key must be in ", list(elem_keys.keys()))
 
 def sym_to_name(val=None):
-    elem_keys = dict(He="helium",
+    elem_keys = dict(H="hydrogen",
+                     He="helium",
+                     Li="lithium",
+                     Be='beryllium',
+                     B='boron',
                      C="carbon",
                      N="nitrogen",
                      O="oxygen",

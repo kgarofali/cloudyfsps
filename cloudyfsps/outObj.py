@@ -19,6 +19,7 @@ import fsps
 from .generalTools import calcQ, air_to_vac, getEmis
 from .astrodata import dopita, sdss, vanzee, kewley
 import pkg_resources
+from astropy.io import ascii
 
 c = 2.9979e18 #ang/s
 lsun = 3.839e33 #erg/s
@@ -152,28 +153,104 @@ class modObj(object):
         return
     def load_lines(self, use_doublet=False, **kwargs):
         names, vacwavs = getEmis()
-        self.lines = dict(names=names, wavs=vacwavs)
+        #self.lines = dict(names=names, wavs=vacwavs)
         lines = {'Lya':1215.67,
-                 'Ha':6564.60,
-                 'HeI':5877.243,
-                 'HeII':4687.015,
-                 'HeIIu':1640.42,
-                 'Hb':4862.71,
-                 'Hg':4341.692,
-                 'Hd':4102.892,
-                 'OIIIa':4960.295,
-                 'OIIIb':5008.240,
-                 'NIIa':6549.86,
-                 'NIIb':6585.27,
-                 'OIIa':3727.10,
-                 'OIIb':3729.86,
-                 'SIIa':6718.294,
-                 'SIIb':6732.673,
-                 'OI':6302.046,
-                 'NeIIIb':3869.86,
-                 'NeIIIa':3968.59,
-                 'SIII':6313.81,
-                 'ArIII':7137.77}
+                 'Ha':6564.723,
+                 'Hb':4862.763,
+                 'Hg':4341.748,
+                 'Hd':4102.951,
+                 'Pabeta': 12821.7,
+                 'Pagamma': 10941.16,
+                 'Pfalpha': 74599.152,
+                 'HeI':5877.358,
+                 'HeIi': 10833.43,
+                 'HeII':4687.024,
+                 'HeIIu':1640.43,
+                 'HeIIeua': 1084.94,
+                 'HeIIeub': 1215.13,
+                 'HeIIi': 10126.23,
+                 'OI':6302.139,
+                 'OIIa':3727.118, # O__2_372603A
+                 'OIIb':3730.119, # O__2_372881A
+                 'OIIIua': 1660.81,
+                 'OIIIub': 1666.00,
+                 'OIIIuc': 2320.95,
+                 'OIIIaa': 4932.682,
+                 'OIIIa':4960.37, # O__3_495891A
+                 'OIIIb':5008.314, # O__3_500684A
+                 'OIIIc':4364.294,
+                 'OIIIia': 518153.0,
+                 'OIIIib': 883577.1,
+                 'OIVi': 258906.4,
+                 'NIIa':6549.959,
+                 'NIIb':6585.369,
+                 'SIIa':6718.396,
+                 'SIIb':6732.78,
+                 'SIIi': 348146.1,
+                 'SIII':6313.902,
+                 'SIIIia': 187131.8,
+                 'SIIIib': 334800.3,
+                 'SIVi': 105106.2,
+                 'ArII': 69853.79,
+                 'ArIII':7137.866,
+                 'ArIVu': 2853.66,
+                 'ArIVa': 4712.651,
+                 'ArIVb': 4741.519,
+                 'ArIVc': 7172.785,
+                 'ArIVd': 7239.875,
+                 'ArIVe': 7265.442,
+                 'ArIVf': 7334.2814,
+                 'ArVia': 79019.823,
+                 'ArVib': 131022.67,
+                 'ArVI': 45293.03,
+                 'CIIIua': 1906.68,
+                 'CIIIub': 1908.73,
+                 'CIVa': 1548.19,
+                 'CIVb': 1550.78,
+                 'NeIIi': 128137.9,
+                 'NeIIIu': 1814.56,
+                 'NeIIIa': 3343.194,
+                 'NeIIIb':3869.917,
+                 'NeIIIc':3968.654,
+                 'NeIIIia': 155553.7,
+                 'NeIIIib':360139.5,
+                 'NeIV': 2424.774,
+                 'NeV': 3427.066,
+                 'NeVia': 143269.2,
+                 'NeVib': 242134.6,
+                 'NeVI': 76453.79,
+                 'MgIV': 44884.11,
+                 'MgV': 56086.13,
+                 'MgVIIia': 55033.527,
+                 'MgVIIib': 90091.40,
+                 'FeII': 12570.43,
+                 'FeVIia': 10111.824,
+                 'FeVIib': 123109.4,
+                 'FeVIic': 147712.47,
+                 'FeVIid': 195583.24,
+                 'FeVIIia': 78126.166,
+                 'FeVIIib': 95103.647,
+                 'FeXIII': 10749.306,
+                 'SiIII': 1882.71,
+                 'SiVIIia': 24814.241,
+                 'SiVIIib': 65147.535,
+                 'SiX': 14304.925,
+                 'SiXI': 19350.172,
+                 'SiVI': 19630.353,
+                 'SiIX': 39293.302,
+                 'AlV': 29053.359,
+                 'AlVI': 36603.729,
+                 'AlIX': 20450.288,
+                 'PV': 1121.3,
+                 'CaIVi': 32070.23,
+                 'CaVIII': 23218.383,
+                 'KIVi': 59820.2,
+                 'NIV': 1486.5,
+                 'NaIII': 73191.647,
+                 'NaIV': 90335.776}
+
+        self.lines = dict(names=np.array(list(lines.keys())), wavs=np.array(list(lines.values())))
+
         line_info = np.genfromtxt(self.fl+'.lineflux')
         lam, flu = line_info[:,0], line_info[:,1]
         for name, wav in list(lines.items()):
@@ -192,44 +269,85 @@ class modObj(object):
         #
         self.log_NIIa_Ha = logHa(self.NIIa)
         self.log_NIIb_Ha = logHa(self.NIIb)
+        self.log_OI_Ha = logHa(self.OI)
         self.log_SIIa_Ha = logHa(self.SIIa)
         self.log_SIIb_Ha = logHa(self.SIIb)
         #
         self.log_OIIIa_Hb = logHb(self.OIIIa)
         self.log_OIIIb_Hb = logHb(self.OIIIb)
+        self.log_NeIIIb_Hb = logHb(self.NeIIIb)
+
         #
         self.log_OIII_OII = logify(self.OIIIa+self.OIIIb, self.OIIa+self.OIIb)
         self.log_OIIIa_OII = logify(self.OIIIa, self.OIIa+self.OIIb)
         self.log_OIIIb_OII = logify(self.OIIIb, self.OIIa+self.OIIb)
+        self.log_OIIIc_OIIIb = logify(self.OIIIc,self.OIIIb)
+        self.log_OIIIc_Hg = logify(self.OIIIc,self.Hg)
+
         #
         self.log_OI_Ha = logHa(self.OI)
         self.log_NII_OII = logify(self.NIIa+self.NIIb, self.OIIa+self.OIIb)
         self.R23 = logHb(self.OIIa+self.OIIb+self.OIIIa+self.OIIIb)
+        #
+        self.log_HeII_Hb = logHb(self.HeII)
+        self.log_HeIIu_CIII = logify(self.HeIIu, (self.CIIIua + self.CIIIub))
+        #
+        self.log_NeV_Hb = logHb(self.NeV)
+        #
+        self.log_OIVi_NeIIIia = logify(self.OIVi,self.NeIIIia)
+        self.log_NeIIIia_NeIIi = logify(self.NeIIIia,self.NeIIi)
+        self.log_NeVia_NeIIIia = logify(self.NeVia,self.NeIIIia)
+        self.log_SIVi_NeIIi  = logify(self.SIVi,self.NeIIi)
+        self.log_SIVi_ArII = logify(self.SIVi,self.ArII)
+        self.log_OIVi_SIIIia = logify(self.OIVi,self.SIIIia)
+        self.log_ArII_Pfalpha = logify(self.ArII,self.Pfalpha)
+        self.log_ArVia_Pfalpha = logify(self.ArVia,self.Pfalpha)
+        self.log_OIVi_Pfalpha = logify(self.OIVi,self.Pfalpha)
+        self.log_SIIIib_SIIi = logify(self.SIIIib,self.SIIi)
+        self.log_FeII_Pabeta = logify(self.FeII,self.Pabeta)
+        self.log_HeIi_Pagamma = logify(self.HeIi,self.Pagamma)
+        self.log_CIV_OIII = logify((self.CIVa + self.CIVb),(self.OIIIub + self.OIIIua))
+        self.log_CIV_CIII = logify((self.CIVa + self.CIVb), (self.CIIIua + self.CIIIub))
+        self.log_OIII_CIII = logify((self.OIIIua + self.OIIIub),(self.CIIIua + self.CIIIub))
+        self.log_SiIII_CIII = logify(self.SiIII, (self.CIIIua + self.CIIIub))
+        self.log_CIV_HeII = logify((self.CIVa + self.CIVb),self.HeIIu)
+        self.log_OIII_HeII = logify(self.OIIIub,self.HeIIu)
+        self.log_NeIIIb_OIIa = logify(self.NeIIIb,self.OIIa)
+        self.log_NeV_NeIIIb = logify(self.NeV,self.NeIIIb)
+
+
         return
     def _load_cont(self, dist_corr=False, output_units=False, **kwargs):
         cont_info = np.genfromtxt(self.fl+'.contflux', skip_header=1)
-        # erg / s / cm2
-        self.lam, self.nebflu = cont_info[:,0], cont_info[:,3]
+        # erg / s
+        self.lam, self.nebflu, self.contflu = cont_info[:,0], cont_info[:,3], cont_info[:,4]
         self.incflu, self.attflu = cont_info[:,1], cont_info[:,2]
-        self.spec_Q = calcQ(self.lam, self.incflu, f_nu=True)
-        if dist_corr: # erg/s
-            self.nebflu *= self.dist_fact
-            self.attflu *= self.dist_fact
-            self.incflu *= self.dist_fact
-            self.spec_Q = calcQ(self.lam, self.incflu*c/self.lam, f_nu=True)
-        elif output_units: # Lsun/Hz
-            self.nebflu *= self.dist_fact/lsun * self.lam / c
-            self.attflu *= self.dist_fact/lsun * self.lam / c
-            self.incflu *= self.dist_fact/lsun * self.lam / c
-            self.spec_Q = calcQ(self.lam, self.incflu*lsun, f_nu=True)
+        self.spec_Q = calcQ(self.lam, self.incflu/(c/self.lam), f_nu=True)
+        if dist_corr: # erg/s/cm^2
+            self.nebflu *= 1./self.dist_fact
+            self.contflu *= 1./self.dist_fact
+            self.attflu *= 1./self.dist_fact
+            self.incflu *= 1./self.dist_fact
+        elif output_units: # erg/s/A
+            self.nebflu *= 1./self.lam
+            self.contflu *= 1./self.lam
+            self.attflu *= 1./self.lam
+            self.incflu *= 1./self.lam
+            #self.spec_Q = calcQ(self.lam, self.incflu*lsun, f_nu=True)
         return
-    def get_fsps_spec(self, **kwargs):
-        sp = fsps.StellarPopulation(zcontinuous=1)
-        sp.params['logzsol'] = self.logZ
-        lam, spec = sp.get_spectrum(tage=self.age*1.0e-9)
-        self.__setattr__('fsps_lam', lam)
-        self.__setattr__('fsps_spec', spec)
-        self.__setattr__('fsps_Q', calcQ(lam, spec*lsun, f_nu=True))
+    def get_fsps_spec(self, dir_, **kwargs):
+        #sp = fsps.StellarPopulation(zcontinuous=1)
+        #sp.params['logzsol'] = self.logZ
+        #lam, spec = sp.get_spectrum(tage=self.age*1.0e-9)
+        # in incflu tab units will be flux per unit Hz (erg/s/cm^2/Hz) in units of solar luminosity
+        ssp_tab = ascii.read('{}/incflu-ssplike.dat'.format(dir_))
+        zmet_str = str(float('{:.1g}'.format(10**float(self.logZ))))+'zsol'
+        #str(round(10**float(self.logZ),3))+'zsol'
+        age_str = str(round(self.age/1e+6))+'Myr'
+        colname_str = 'incflu_Hz'+age_str+'-'+zmet_str
+        self.__setattr__('fsps_lam', ssp_tab['Lam'])
+        self.__setattr__('fsps_spec', ssp_tab[colname_str]*lsun*self.dist_fact)
+        self.__setattr__('fsps_Q', calcQ(ssp_tab['Lam'], ssp_tab[colname_str]*lsun*self.dist_fact, f_nu=True))
         return
     def _read_f(self, key, delimiter='\t', comments=';', names=True, **kwargs):
         '''
@@ -285,7 +403,8 @@ class modObj(object):
             self.emis_labels = np.asarray(emis.dtype.names[1::])
             self.n_emis = np.size(self.emis_labels)
             self.emis_full = np.zeros((self.n_emis, np.size(emis)))
-            trans_emis = lambda x: pow(10., x)
+            trans_emis = lambda x: x
+            #trans_emis = lambda x: pow(10., x)
             for i, label in enumerate(self.emis_labels):
                 self.emis_full[i] = trans_emis(emis[label])
             self.indHe = np.argmin(np.abs(self.ion_arr['He'][1]-0.5))
